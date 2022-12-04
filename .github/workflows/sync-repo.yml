@@ -18,7 +18,7 @@ jobs:
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
         with:
         # Branch receiving updates from the upstream repo, e.g. => main, master, prod
-          target_sync_branch: main
+          target_sync_branch: develop
         # Input for passing secrets.GITHUB_TOKEN when disabling persistent auth in the checkout step
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
         # Upstream repository, e.g. => aormsby/Fork-Sync-With-Upstream-action
