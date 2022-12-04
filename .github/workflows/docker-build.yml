@@ -26,5 +26,5 @@ jobs:
         with:
           push: true
           context: .
-          file: Dockerfile.flux
+          file: ./Dockerfile.flux
           tags: honsontran/flux-olympus-frontend:latest
