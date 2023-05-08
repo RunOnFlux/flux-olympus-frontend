@@ -1,5 +1,6 @@
 import { Grid, Paper, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import React from "react";
 import { CSSProperties } from "react";
 import { DataFormat } from "src/components/Chart/Constants";
 import { formatCurrency } from "src/helpers";
@@ -30,7 +31,7 @@ const renderDate = (item: TooltipPayloadItem) => {
 
   return (
     <>
-      <Grid item xs={12} marginBottom="20px">
+      <Grid item xs={12} marginBottom="5px">
         {
           // Format: October 10, 2022 - 01:22 UTC
           // The `slice` approach is documented here: https://stackoverflow.com/a/3605248
@@ -121,6 +122,11 @@ const renderBulletpointRow = (
     ...dataKeyBulletpointStyles.get(item.dataKey),
   };
 
+  // Don't render a tooltip row if the value is 0 (#2673)
+  if (!item.value) {
+    return <React.Fragment key={item.dataKey}></React.Fragment>;
+  }
+
   return (
     <Grid
       item
@@ -128,8 +134,8 @@ const renderBulletpointRow = (
       xs={12}
       alignContent="center"
       justifyContent="space-between"
-      style={{ marginBottom: "5px" }}
-      key={index}
+      style={{ marginBottom: "2px" }}
+      key={item.dataKey}
     >
       <Grid item xs={1} alignContent="left">
         <span style={bulletpointStyle}></span>
@@ -157,7 +163,7 @@ const renderTooltipItems = (
   let ignoredIndex = 0;
 
   return (
-    <Grid container xs={12} padding={"10px"}>
+    <Grid container padding={"10px"}>
       {renderDate(payload[0])}
       {payload
         .map((item, index) => {
@@ -171,7 +177,7 @@ const renderTooltipItems = (
             (dataKeysExcludedFromTotal && dataKeysExcludedFromTotal.includes(item.dataKey))
           ) {
             ignoredIndex++;
-            return { label: label, element: <></> };
+            return { label: label, element: <React.Fragment key={item.dataKey}></React.Fragment> };
           }
 
           const adjustedIndex = index - ignoredIndex;
@@ -192,13 +198,13 @@ const renderTooltipItems = (
         .sort((a, b) => a.label.localeCompare(b.label))
         .map(item => item.element)}
       {displayTotal && renderTotal(dataFormat, payload, dataKeysExcludedFromTotal)}
-      <Grid item xs={12} marginBottom="20px" />
+      <Grid item xs={12} marginBottom="10px" />
       {
         // Display elements of totalExcludesDataKeys below the total
         payload.map((item, index) => {
           if (!dataKeysExcludedFromTotal || !dataKeysExcludedFromTotal.includes(item.dataKey)) {
             ignoredIndex++;
-            return <></>;
+            return <React.Fragment key={item.dataKey}></React.Fragment>;
           }
 
           const adjustedIndex = index - ignoredIndex;

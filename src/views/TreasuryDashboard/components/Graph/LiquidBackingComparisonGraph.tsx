@@ -2,7 +2,6 @@ import { useTheme } from "@mui/material/styles";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import Chart from "src/components/Chart/Chart";
 import { ChartType, DataFormat } from "src/components/Chart/Constants";
-import { ProtocolMetricsDocument, TokenRecord_Filter } from "src/generated/graphql";
 import { formatCurrency } from "src/helpers";
 import {
   getBulletpointStylesMap,
@@ -14,9 +13,11 @@ import {
   getLiquidBackingPerOhmBacked,
   getTreasuryAssetValue,
 } from "src/helpers/subgraph/TreasuryQueryHelper";
-import { useProtocolMetricsQuery } from "src/hooks/useSubgraphProtocolMetrics";
-import { useTokenRecordsQueries } from "src/hooks/useSubgraphTokenRecords";
-import { useTokenSuppliesQuery } from "src/hooks/useSubgraphTokenSupplies";
+import {
+  useProtocolMetricsQuery,
+  useTokenRecordsQuery,
+  useTokenSuppliesQuery,
+} from "src/hooks/useFederatedSubgraphQuery";
 import {
   DEFAULT_BULLETPOINT_COLOURS,
   DEFAULT_COLORS,
@@ -24,48 +25,26 @@ import {
   PARAM_TOKEN_OHM,
 } from "src/views/TreasuryDashboard/components/Graph/Constants";
 import { getTickStyle } from "src/views/TreasuryDashboard/components/Graph/helpers/ChartHelper";
-import { getSubgraphQueryExplorerUrl } from "src/views/TreasuryDashboard/components/Graph/helpers/SubgraphHelper";
-import { getLatestTimestamp } from "src/views/TreasuryDashboard/components/Graph/helpers/TokenRecordsQueryHelper";
+import { getDateProtocolMetricMap } from "src/views/TreasuryDashboard/components/Graph/helpers/ProtocolMetricsQueryHelper";
+import {
+  getDateTokenRecordMap,
+  getLatestTimestamp,
+} from "src/views/TreasuryDashboard/components/Graph/helpers/TokenRecordsQueryHelper";
+import { getDateTokenSupplyMap } from "src/views/TreasuryDashboard/components/Graph/helpers/TokenSupplyQueryHelper";
 
 /**
  * React Component that displays a line graph comparing the
  * OHM price and liquid backing per backed OHM.
  */
-export const LiquidBackingPerOhmComparisonGraph = ({
-  subgraphUrls,
-  earliestDate,
-  activeToken,
-  subgraphDaysOffset,
-}: GraphProps) => {
+export const LiquidBackingPerOhmComparisonGraph = ({ earliestDate, activeToken, subgraphDaysOffset }: GraphProps) => {
   // TODO look at how to combine query documents
-  const queryExplorerUrl = getSubgraphQueryExplorerUrl(ProtocolMetricsDocument, subgraphUrls.Ethereum);
+  const queryExplorerUrl = "";
   const theme = useTheme();
   const chartName = "LiquidBackingComparison";
-  const [baseFilter] = useState<TokenRecord_Filter>({});
 
-  const tokenRecordResults = useTokenRecordsQueries(
-    chartName,
-    subgraphUrls,
-    baseFilter,
-    earliestDate,
-    subgraphDaysOffset,
-  );
-
-  const tokenSupplyResults = useTokenSuppliesQuery(
-    chartName,
-    subgraphUrls.Ethereum,
-    baseFilter,
-    earliestDate,
-    subgraphDaysOffset,
-  );
-
-  const protocolMetricResults = useProtocolMetricsQuery(
-    chartName,
-    subgraphUrls.Ethereum,
-    baseFilter,
-    earliestDate,
-    subgraphDaysOffset,
-  );
+  const { data: tokenRecordResults } = useTokenRecordsQuery(earliestDate);
+  const { data: tokenSupplyResults } = useTokenSuppliesQuery(earliestDate);
+  const { data: protocolMetricResults } = useProtocolMetricsQuery(earliestDate);
 
   /**
    * Active token:
@@ -100,13 +79,18 @@ export const LiquidBackingPerOhmComparisonGraph = ({
       return;
     }
 
+    // Extract into a by-date map
+    const byDateTokenRecordMap = getDateTokenRecordMap(tokenRecordResults);
+    const byDateTokenSupplyMap = getDateTokenSupplyMap(tokenSupplyResults);
+    const byDateProtocolMetricMap = getDateProtocolMetricMap(protocolMetricResults);
+
     // We need to flatten the records from all of the pages arrays
     console.debug(`${chartName}: rebuilding by date metrics`);
     const tempByDateLiquidBacking: LiquidBackingComparison[] = [];
-    tokenRecordResults.forEach((value, key) => {
+    byDateTokenRecordMap.forEach((value, key) => {
       const currentTokenRecords = value;
-      const currentTokenSupplies = tokenSupplyResults.get(key);
-      const currentProtocolMetrics = protocolMetricResults.get(key);
+      const currentTokenSupplies = byDateTokenSupplyMap.get(key);
+      const currentProtocolMetrics = byDateProtocolMetricMap.get(key);
 
       if (!currentTokenSupplies || !currentProtocolMetrics) {
         /**
@@ -125,18 +109,15 @@ export const LiquidBackingPerOhmComparisonGraph = ({
 
       const liquidBacking = getTreasuryAssetValue(currentTokenRecords, true);
 
+      const ohmIndex: number = +latestProtocolMetric.currentIndex;
       const liquidBackingRecord: LiquidBackingComparison = {
         date: key,
         timestamp: earliestTimestamp,
-        block: latestTokenRecord.block,
-        gOhmPrice: latestProtocolMetric.gOhmPrice,
-        ohmPrice: latestProtocolMetric.ohmPrice,
-        liquidBackingPerBackedOhm: getLiquidBackingPerOhmBacked(liquidBacking, currentTokenSupplies),
-        liquidBackingPerGOhmSynthetic: getLiquidBackingPerGOhmSynthetic(
-          liquidBacking,
-          latestProtocolMetric.currentIndex,
-          currentTokenSupplies,
-        ),
+        block: +latestTokenRecord.block,
+        gOhmPrice: +latestProtocolMetric.gOhmPrice,
+        ohmPrice: +latestProtocolMetric.ohmPrice,
+        liquidBackingPerBackedOhm: getLiquidBackingPerOhmBacked(liquidBacking, currentTokenSupplies, ohmIndex),
+        liquidBackingPerGOhmSynthetic: getLiquidBackingPerGOhmSynthetic(liquidBacking, ohmIndex, currentTokenSupplies),
       };
 
       tempByDateLiquidBacking.push(liquidBackingRecord);
@@ -202,8 +183,16 @@ export const LiquidBackingPerOhmComparisonGraph = ({
     setHeaderText(isActiveTokenOHM ? `OHM Backing` : `gOHM Backing`);
     setTooltipText(
       isActiveTokenOHM
-        ? `This chart compares the price of OHM against its liquid backing. When OHM is above liquid backing, the difference will be highlighted in green. Conversely, when OHM is below liquid backing, the difference will be highlighted in red.`
-        : `This chart compares the price of gOHM against its liquid backing. When gOHM is above liquid backing, the difference will be highlighted in green. Conversely, when gOHM is below liquid backing, the difference will be highlighted in red.`,
+        ? `This chart compares the price of OHM against its liquid backing per backed OHM. When OHM is above liquid backing, the difference will be highlighted in green. Conversely, when OHM is below liquid backing, the difference will be highlighted in red.
+        
+The values are determined at the time a snapshot is recorded (every 8 hours). As a result, they will lag the real-time market rates.
+
+As data is sourced from multiple chains that may have different snapshot times, the data shown represents the snapshots for which all data has been recorded. As a result, the data may lag.`
+        : `This chart compares the price of gOHM against its liquid backing per backed gOHM. When gOHM is above liquid backing, the difference will be highlighted in green. Conversely, when gOHM is below liquid backing, the difference will be highlighted in red.
+
+The values are determined at the time a snapshot is recorded (every 8 hours). As a result, they will lag the real-time market rates.
+
+As data is sourced from multiple chains that may have different snapshot times, the data shown represents the snapshots for which all data has been recorded. As a result, the data may lag.`,
     );
   }, [isActiveTokenOHM]);
 

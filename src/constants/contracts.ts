@@ -4,8 +4,11 @@ import {
   BOND_DEPOSITORY_ADDRESSES,
   BOND_FIXED_EXPIRY_TELLER_ADDRESSES,
   BOND_FIXED_TERM_TELLER_ADDRESSES,
+  CROSS_CHAIN_BRIDGE_ADDRESSES,
+  CROSS_CHAIN_BRIDGE_ADDRESSES_TESTNET,
   DEV_FAUCET,
   DISTRIBUTOR_ADDRESSES,
+  LIQUIDITY_REGISTRY_ADDRESSES,
   MIGRATOR_ADDRESSES,
   OP_BOND_DEPOSITORY_ADDRESSES,
   RANGE_ADDRESSES,
@@ -21,7 +24,10 @@ import {
   BondDepository__factory,
   BondFixedExpiryTeller__factory,
   BondFixedTermTeller__factory,
+  CrossChainBridge__factory,
+  CrossChainBridgeTestnet__factory,
   CrossChainMigrator__factory,
+  OlympusLiquidityRegistry__factory,
   OlympusProV2__factory,
   OlympusStakingv2__factory,
   Range__factory,
@@ -122,4 +128,22 @@ export const DISTRIBUTOR_CONTRACT = new Contract({
   factory: OlympusDistributor__factory,
   name: "Distributor Contract",
   addresses: DISTRIBUTOR_ADDRESSES,
+});
+
+export const LIQUDITY_REGISTRY_CONTRACT = new Contract({
+  factory: OlympusLiquidityRegistry__factory,
+  name: "Liquidity Registry Contract",
+  addresses: LIQUIDITY_REGISTRY_ADDRESSES,
+});
+
+export const CROSS_CHAIN_BRIDGE_CONTRACT = new Contract({
+  factory: CrossChainBridge__factory,
+  name: "Cross Chain Bridge Contract",
+  addresses: CROSS_CHAIN_BRIDGE_ADDRESSES,
+});
+
+export const CROSS_CHAIN_BRIDGE_CONTRACT_TESTNET = new Contract({
+  factory: CrossChainBridgeTestnet__factory,
+  name: "Cross Chain Bridge Contract",
+  addresses: CROSS_CHAIN_BRIDGE_ADDRESSES_TESTNET,
 });
